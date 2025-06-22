@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reform UK Exposed Tweets by Area</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+      color: #003b5c;
+    }
+
+    header {
+      background: #00aeef;
+      padding: 1.5rem;
+      text-align: center;
+      color: white;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .filters {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    select, input[type="text"] {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .tweet {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .tweet a {
+      display: inline-block;
+      margin-top: 0.5rem;
+      color: #00aeef;
+      text-decoration: none;
+    }
+
+    .logo {
+      max-width: 100px;
+      margin-bottom: 1rem;
+    }
+
+    footer {
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+      margin-top: 3rem;
+      padding-bottom: 2rem;
+    }
+
+    @media (max-width: 700px) {
+      header h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Reform_UK_logo_2021.svg/2560px-Reform_UK_logo_2021.svg.png" class="logo" alt="Reform UK logo">
+    <h1>Reform UK Exposed Tweets</h1>
+  </header>
+
+  <div class="container">
+    <div class="filters">
+      <label for="areaSelect">Filter by Area:</label>
+      <select id="areaSelect">
+        <option value="">All Areas</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+      <label for="searchInput">Search tweets:</label>
+      <input type="text" id="searchInput" placeholder="Enter keyword..." />
+    </div>
+
+    <div id="tweets"></div>
+  </div>
+
+  <footer>
+    Built by volunteers at Campaign Lab to uncover the truth behind Reform UK
+  </footer>
+
+  <script>
+    const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRIWSv7y9JLfmtj6t7w7O0hfZHz408lG4uzLetguIdsBkFuXKWLxWpeT73SkmD-0twYSwpEnaHuFwkz/pub?gid=840630130&single=true&output=csv';
+
+    let allData = [];
+
+    async function loadCSV(url) {
+      const res = await fetch(url);
+      const text = await res.text();
+      const rows = text.split('\n').map(row => row.split(','));
+
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      const areaIdx = headers.findIndex(h => h.includes("area"));
+      const tweetIdx = headers.findIndex(h => h.includes("tweet"));
+      const urlIdx = headers.findIndex(h => h.includes("url"));
+
+      const data = rows.slice(1).map(r => ({
+        area: r[areaIdx]?.trim(),
+        tweet: r[tweetIdx]?.trim(),
+        url: r[urlIdx]?.trim()
+      })).filter(d => d.area && d.tweet);
+
+      return data;
+    }
+
+    function populateDropdown(id, items) {
+      const select = document.getElementById(id);
+      items.sort().forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    function applyFilters() {
+      const area = document.getElementById('areaSelect').value;
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+      const tweetsDiv = document.getElementById('tweets');
+      tweetsDiv.innerHTML = '';
+
+      const filtered = allData.filter(d => {
+        const matchesArea = area === '' || d.area === area;
+        const matchesSearch = searchTerm === '' || d.tweet.toLowerCase().includes(searchTerm);
+        return matchesArea && matchesSearch;
+      });
+
+      if (filtered.length === 0) {
+        tweetsDiv.innerHTML = "<p>No tweets match your filters.</p>";
+        return;
+      }
+
+      filtered.forEach(d => {
+        const div = document.createElement("div");
+        div.className = "tweet";
+        div.innerHTML = `
+          ${d.tweet}
+          ${d.url ? `<br><a href="${d.url}" target="_blank">View on Twitter</a>` : ''}
+        `;
+        tweetsDiv.appendChild(div);
+      });
+    }
+
+    async function init() {
+      allData = await loadCSV(sheetURL);
+      const uniqueAreas = [...new Set(allData.map(d => d.area))];
+      populateDropdown('areaSelect', uniqueAreas);
+
+      document.getElementById('areaSelect').addEventListener('change', applyFilters);
+      document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+      applyFilters(); // initial render
+    }
+
+    init();
+  </script>
+
+</body>
+</html>
